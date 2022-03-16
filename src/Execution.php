@@ -56,11 +56,20 @@ class Execution{
                     $SliceCopy = CloneObject($Slice);
                     $this->clean();
                     $Cond = $this->ExecutionPerExpr($CurrentNode->Conditions[$i], $SliceCopy);
+                    foreach($SliceCopy->Variables as $name => $id){
+                      //  print($name. "\n" .$id);
+                      //  print($SliceCopy->VariableValues[$id]);
+                      //  print(printexpr($SliceCopy->VariableValues[$id]->Value));
+                    }
+                    #print (printexpr($Cond->Value));
+                    Operation::realprint($Cond);
+                    #print (printexpr($CurrentNode->Conditions[$i]));
                     if($CurrentNode->Conditions[$i] instanceof PhpParser\Node)
                         $line = $CurrentNode->Conditions[$i]->getLine();
                     else $line = -1;
                     $this->writelog1($line ? $line: -1, $Slice);
                     $SliceCopy->Constraints[] = $Cond;
+
                     $slice_array[] = $SliceCopy;
                     $Body = $CurrentNode->Bodies[$i];
                     $this->ExecutionPerNode($Body[0], $Body[1], $SliceCopy);
@@ -178,7 +187,7 @@ class Execution{
 
         if($Expr == NULL)
             return new Variable(); // return null
-        //echo get_class($Expr), "\n";
+        //echo get_class($Expr), "llll\n";
         if($Expr instanceof Stmt\Expression) {
             return $this->ExecutionPerExpr($Expr->expr, $Slice);
         }
@@ -208,13 +217,15 @@ class Execution{
             return $this->ExecutionPerExpr($Assign, $Slice);
         }
         elseif($Expr instanceof Expr\BinaryOp) {
-            //echo "binaryop l", get_class($Expr->left), "\n";
+            #echo "binaryop l", get_class($Expr->left), "\n";
             $lhstemp = $this->ExecutionPerExpr($Expr->left, $Slice);
-            //echo "binaryop r", get_class($Expr->right), "\n";
+            #echo "binaryop r", get_class($Expr->right), "\n";
+            //print(printexpr($lhstemp->Value));
             $rhstemp = $this->ExecutionPerExpr($Expr->right, $Slice);
             $ExprType = \get_class($Expr);
             $ExprType = explode("\\", $ExprType)[4];
-            $ret = Variable::{$ExprType}($lhstemp, $rhstemp);  
+            $ret = Operation::{$ExprType}($lhstemp, $rhstemp);  
+            //print get_class($ret);
             $ret->Value = $Expr;
             $ret->Sources = $lhstemp->Sources;
             foreach($rhstemp->Sources as $s) {
@@ -732,11 +743,12 @@ class Execution{
         }
         elseif($Expr instanceof Expr\ArrayDimFetch) {
             $Variable= Evaluate($Expr, $Slice);
+            $exprstring = printexpr($Expr);
             if(!$Variable instanceof Variable) {
                 $Variable = new Variable();
                 $Variable->Value = $Expr;
             }
-            $exprstring = printexpr($Expr);
+            
             if(encrypt($exprstring)) {
                 $Variable->FromEncrypt = true;
                 $Variable->IsTainted = true;
@@ -1138,7 +1150,9 @@ function Evaluate($Var, $Slice, $arrkey = false) {
                 }
             }
             else{
+              //  print('here!!!');
                 $pos = $Slice->Variables[$Var->name];
+              //  print($pos);
             }
             if($FromEncrypt)
                 $Slice->VariableValues[$pos]->FromEncrypt = $FromEncrypt;
@@ -1162,19 +1176,20 @@ function Evaluate($Var, $Slice, $arrkey = false) {
             else {
                 return NULL;
             }
-        if($Array instanceof Variable) {
-            $Array->IsTainted = $FromGlobal;
-            $item = $Array->FindKey($Var->dim); // check this function todo
-            if($item === NULL) {
-                // Rethink about it. avoid to use global variables because of the conflict name
-                $key = new Node\Scalar\LNumber(count($Array->Items));
-                $item = new ArrayItem($key, NULL);// append
-                $Array->Items[count($Array->Items)] = $item;
+            if($Array instanceof Variable) {
+                $Array->IsTainted = $FromGlobal;
+                $item = $Array->FindKey($Var->dim); // check this function todo
+                if($item === NULL) {
+                    // Rethink about it. avoid to use global variables because of the conflict name
+                    $key = new Node\Scalar\LNumber(count($Array->Items));
+                    $item = new ArrayItem($key, $Var);// append
+                    $Array->Items[count($Array->Items)] = $item;
+                    //print("global111");
+                }
+                $item->IsTainted = $FromGlobal;
+                $item->Types[] = ($FromGlobal) ? Variable::String_ : Variable::Unknown_;
+                return $item;
             }
-            $item->IsTainted = $FromGlobal;
-            $item->Types[] = ($FromGlobal) ? Variable::String_ : Variable::Unknown_;
-            return $item;
-        }
         return NULL;
     }
     elseif($Var instanceof Expr\PropertyFetch) {
@@ -1240,7 +1255,9 @@ function Evaluate($Var, $Slice, $arrkey = false) {
 
 function printexpr($expr) {
     $printer = new PhpParser\PrettyPrinter\Standard;
-    return $printer->prettyPrintExpr($expr);
+    if($expr instanceof PhpParser\Node\Expr)
+        return $printer->prettyPrintExpr($expr);
+    return "null";
 }
 
 function encrypt($exprstring){

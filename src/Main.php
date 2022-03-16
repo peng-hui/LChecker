@@ -44,6 +44,7 @@ function MainAnalysisStart($AppPath) {
             $pos = 0;
             foreach($Method->Params as $paramname => $value) {
                 $newparam =  new Variable("argtype" . (string)$pos);
+                $newparam->Value = new PhpParser\Node\Expr\Variable($paramname);
                 $newparam->Sources[] = 'arg' . (string)$pos;
                 $Slice->Variables[$paramname] = $pos;
                 $Slice->VariableValues[] = $newparam;
