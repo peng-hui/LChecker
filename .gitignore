@@ -3,3 +3,4 @@
 .*.swp
 composer.lock
 vendor/
+*.txt

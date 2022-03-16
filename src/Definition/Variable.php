@@ -229,7 +229,7 @@ class Operation extends Variable {
     }
 
     static public function realprint($op) {
-        $t = printexpr($op->Left->Value) . $op->Operator . printexpr($op->Right->Value);
+        $t = printexpr($op->Left->Value) . $op->Operator . printexpr($op->Right->Value) . "\n";
         print($t);
         return $t;
     }
